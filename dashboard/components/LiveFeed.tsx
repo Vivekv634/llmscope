@@ -12,7 +12,7 @@ export function LiveFeed({ runId, staticText }: LiveFeedProps) {
 
   if (staticText !== null && tokens.length === 0) {
     return (
-      <pre className="text-sm whitespace-pre-wrap leading-relaxed text-gray-700">
+      <pre className="text-sm whitespace-pre-wrap break-words leading-relaxed text-gray-700 overflow-hidden">
         {staticText}
       </pre>
     );
@@ -21,8 +21,8 @@ export function LiveFeed({ runId, staticText }: LiveFeedProps) {
   const liveText = tokens.map((t) => t.text).join("");
 
   return (
-    <div>
-      <pre className="text-sm whitespace-pre-wrap leading-relaxed text-gray-700">
+    <div className="overflow-hidden">
+      <pre className="text-sm whitespace-pre-wrap break-words leading-relaxed text-gray-700">
         {liveText}
         {!done && (
           <span className="inline-block w-1.5 h-4 bg-indigo-500 ml-0.5 animate-pulse" />

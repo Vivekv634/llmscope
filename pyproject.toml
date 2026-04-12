@@ -7,6 +7,17 @@ readme = "README.md"
 license = "MIT"
 homepage = "https://github.com/Vivekv634/llmscope"
 keywords = ["llm", "ollama", "observability", "inference", "local-ai"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+packages = [{include = "llmscope"}]
+include = ["llmscope/static/**/*"]
 
 [tool.poetry.dependencies]
 python = "^3.11"

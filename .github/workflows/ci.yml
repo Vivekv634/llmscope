@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: ["master", "main"]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install poetry==1.8.3
+      - run: poetry install --no-interaction
+      - run: poetry run ruff check llmscope/ tests/
+      - run: poetry run ruff format --check llmscope/ tests/
+
+  typecheck:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install poetry==1.8.3
+      - run: poetry install --no-interaction
+      - run: poetry run mypy llmscope/
+
+  test:
+    needs: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install poetry==1.8.3
+      - run: poetry install --no-interaction
+      - run: poetry run pytest --cov=llmscope --cov-report=term-missing -q

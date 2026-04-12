@@ -68,3 +68,10 @@ export interface LatencyPoint {
   gap_ms: number;
   is_stall: boolean;
 }
+
+export interface DriftResult {
+  run_a_id: string;
+  run_b_id: string;
+  cosine_drift: number;
+  is_significant: boolean;
+}

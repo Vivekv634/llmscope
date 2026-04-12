@@ -1,0 +1,28 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: pip install poetry==1.8.3
+      - run: poetry install --no-interaction
+      - run: poetry run mypy llmscope/
+      - run: poetry run pytest -q
+      - run: bash scripts/build_dashboard.sh
+      - run: poetry build
+      - uses: pypa/gh-action-pypi-publish@release/v1

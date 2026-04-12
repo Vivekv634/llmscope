@@ -1,4 +1,5 @@
 import type {
+  DriftResult,
   OutputRecord,
   RunRecord,
   SignalResponse,
@@ -42,6 +43,19 @@ export async function getOutput(runId: string): Promise<OutputRecord | null> {
 export async function getSignals(runId: string): Promise<SignalResponse | null> {
   try {
     return await apiFetch<SignalResponse>(`/api/runs/${runId}/signals`);
+  } catch {
+    return null;
+  }
+}
+
+export async function getDrift(
+  runId: string,
+  compareTo: string
+): Promise<DriftResult | null> {
+  try {
+    return await apiFetch<DriftResult>(
+      `/api/runs/${runId}/drift?compare_to=${encodeURIComponent(compareTo)}`
+    );
   } catch {
     return null;
   }

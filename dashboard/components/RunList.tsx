@@ -36,7 +36,7 @@ export function RunList({ runs }: { runs: RunRecord[] }) {
             >
               <td className="px-4 py-3">
                 <a
-                  href={`/runs/${run.run_id}`}
+                  href={`/runs/?id=${run.run_id}`}
                   className="font-mono text-blue-600 hover:underline"
                 >
                   {run.run_id.slice(0, 8)}
