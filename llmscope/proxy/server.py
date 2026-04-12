@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import pathlib
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -11,7 +12,10 @@ import httpx
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+
+_STATIC_DIR: pathlib.Path = pathlib.Path(__file__).parent.parent / "static"
 
 from llmscope.compare.engine import CompareResult, compare_models
 from llmscope.proxy.backends.base import AbstractBackend
@@ -27,8 +31,10 @@ from llmscope.types.events import (
     TTFTEvent,
     TokenEvent,
 )
+from llmscope.signals.drift import cosine_drift
 from llmscope.types.runs import OutputRecord, RunRecord, TokenRecord
-from llmscope.types.signals import SignalResponse
+from llmscope.types.signals import DriftResult, SignalResponse
+from llmscope.types.stats import StatsRecord
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -38,6 +44,10 @@ _Subscribers = dict[str, list[asyncio.Queue[str]]]
 class CompareRequest(BaseModel):
     prompt: str
     models: list[str]
+
+
+class TagsRequest(BaseModel):
+    tags: list[str]
 
 
 def _broadcast(subscribers: _Subscribers, run_id: str, payload: str) -> None:
@@ -179,6 +189,35 @@ def create_app(
         quality = output_entropy([t.text for t in tokens])
         return SignalResponse(latency=latency, quality=quality)
 
+    @app.put("/api/runs/{run_id}/tags", response_model=RunRecord)
+    async def update_tags(run_id: str, body: TagsRequest) -> RunRecord:
+        if db.get_run(run_id) is None:
+            raise HTTPException(status_code=404, detail="run not found")
+        db.set_tags(run_id, body.tags)
+        result: Optional[RunRecord] = db.get_run(run_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="run not found")
+        return result
+
+    @app.get("/api/runs/{run_id}/drift", response_model=DriftResult)
+    async def get_drift(run_id: str, compare_to: str) -> DriftResult:
+        run_a: Optional[RunRecord] = db.get_run(run_id)
+        run_b: Optional[RunRecord] = db.get_run(compare_to)
+        if run_a is None:
+            raise HTTPException(status_code=404, detail=f"run not found: {run_id}")
+        if run_b is None:
+            raise HTTPException(status_code=404, detail=f"run not found: {compare_to}")
+        tokens_a: list[TokenRecord] = db.get_tokens(run_id)
+        tokens_b: list[TokenRecord] = db.get_tokens(compare_to)
+        return cosine_drift(
+            run_id, [t.text for t in tokens_a],
+            compare_to, [t.text for t in tokens_b],
+        )
+
+    @app.get("/api/stats", response_model=StatsRecord)
+    async def get_stats() -> StatsRecord:
+        return db.get_stats()
+
     @app.websocket("/ws/stream/{run_id}")
     async def ws_stream(websocket: WebSocket, run_id: str) -> None:
         await websocket.accept()
@@ -201,5 +240,12 @@ def create_app(
                 subs.remove(q)
             if not subs:
                 subscribers.pop(run_id, None)
+
+    if _STATIC_DIR.exists() and any(_STATIC_DIR.iterdir()):
+        app.mount(
+            "/",
+            StaticFiles(directory=str(_STATIC_DIR), html=True),
+            name="ui",
+        )
 
     return app

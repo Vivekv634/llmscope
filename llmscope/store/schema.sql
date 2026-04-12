@@ -1,3 +1,8 @@
+CREATE TABLE IF NOT EXISTS schema_version (
+    version  INTEGER NOT NULL,
+    applied_at TIMESTAMP DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS runs (
     run_id        TEXT PRIMARY KEY,
     model         TEXT NOT NULL,

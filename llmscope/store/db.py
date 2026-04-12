@@ -7,9 +7,13 @@ from datetime import UTC, datetime
 
 import duckdb
 
+from llmscope.signals.quality import output_entropy
 from llmscope.types.events import DoneEvent, RunStartEvent, TTFTEvent, TokenEvent
 from llmscope.types.runs import OutputRecord, RunRecord, TokenRecord
+from llmscope.types.stats import StatsRecord
 from llmscope.store import queries
+
+SCHEMA_VERSION: int = 1
 
 
 class DatabaseStore:
@@ -30,6 +34,20 @@ class DatabaseStore:
         ]
         for statement in statements:
             self._conn.execute(statement)
+        row = self._conn.execute(
+            "SELECT version FROM schema_version ORDER BY applied_at DESC LIMIT 1"
+        ).fetchone()
+        if row is None:
+            self._conn.execute(
+                "INSERT INTO schema_version (version) VALUES (?)",
+                [SCHEMA_VERSION],
+            )
+
+    def get_schema_version(self) -> int:
+        row = self._conn.execute(
+            "SELECT version FROM schema_version ORDER BY applied_at DESC LIMIT 1"
+        ).fetchone()
+        return int(row[0]) if row else 0
 
     def record_start(self, event: RunStartEvent) -> None:
         self._conn.execute(
@@ -77,12 +95,18 @@ class DatabaseStore:
             if event.total_ms > 0
             else 0.0
         )
-        full_text: str = "".join(
+        token_texts: list[str] = [
             str(row[0]) for row in rows if row[0] is not None
-        )
+        ]
+        full_text: str = "".join(token_texts)
+        quality_score: float = output_entropy(token_texts).entropy_score
         self._conn.execute(
-            "UPDATE runs SET total_ms = ?, token_count = ?, tps = ? WHERE run_id = ?",
-            [event.total_ms, token_count, tps, event.run_id],
+            """
+            UPDATE runs
+            SET total_ms = ?, token_count = ?, tps = ?, quality_score = ?
+            WHERE run_id = ?
+            """,
+            [event.total_ms, token_count, tps, quality_score, event.run_id],
         )
         self._conn.execute(
             """
@@ -91,6 +115,12 @@ class DatabaseStore:
             ON CONFLICT DO NOTHING
             """,
             [event.run_id, full_text, token_count],
+        )
+
+    def set_tags(self, run_id: str, tags: list[str]) -> None:
+        self._conn.execute(
+            "UPDATE runs SET tags = ? WHERE run_id = ?",
+            [json.dumps(tags), run_id],
         )
 
     def get_run(self, run_id: str) -> RunRecord | None:
@@ -104,6 +134,9 @@ class DatabaseStore:
 
     def get_output(self, run_id: str) -> OutputRecord | None:
         return queries.get_output_for_run(self._conn, run_id)
+
+    def get_stats(self) -> StatsRecord:
+        return queries.get_stats(self._conn)
 
     def close(self) -> None:
         self._conn.close()

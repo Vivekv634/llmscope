@@ -7,6 +7,7 @@ from typing import Any, Optional
 import duckdb
 
 from llmscope.types.runs import OutputRecord, RunRecord, TokenRecord
+from llmscope.types.stats import StatsRecord
 
 _RUN_COLUMNS: str = (
     "run_id, model, backend, prompt_hash, prompt_text, created_at, "
@@ -92,4 +93,41 @@ def get_output_for_run(
         run_id=str(row[0]),
         full_text=str(row[1]),
         token_count=int(row[2]),
+    )
+
+
+def get_stats(conn: duckdb.DuckDBPyConnection) -> StatsRecord:
+    total_runs_row: Optional[tuple[Any, ...]] = conn.execute(
+        "SELECT COUNT(*) FROM runs"
+    ).fetchone()
+    total_runs: int = int(total_runs_row[0]) if total_runs_row else 0
+
+    total_tokens_row: Optional[tuple[Any, ...]] = conn.execute(
+        "SELECT COUNT(*) FROM tokens"
+    ).fetchone()
+    total_tokens: int = int(total_tokens_row[0]) if total_tokens_row else 0
+
+    avg_tps_row: Optional[tuple[Any, ...]] = conn.execute(
+        "SELECT COALESCE(AVG(tps), 0) FROM runs WHERE tps IS NOT NULL"
+    ).fetchone()
+    avg_tps: float = float(avg_tps_row[0]) if avg_tps_row else 0.0
+
+    avg_ttft_row: Optional[tuple[Any, ...]] = conn.execute(
+        "SELECT COALESCE(AVG(ttft_ms), 0) FROM runs WHERE ttft_ms IS NOT NULL"
+    ).fetchone()
+    avg_ttft_ms: float = float(avg_ttft_row[0]) if avg_ttft_row else 0.0
+
+    model_rows: list[tuple[Any, ...]] = conn.execute(
+        "SELECT model, COUNT(*) FROM runs GROUP BY model ORDER BY COUNT(*) DESC"
+    ).fetchall()
+    model_breakdown: dict[str, int] = {
+        str(row[0]): int(row[1]) for row in model_rows
+    }
+
+    return StatsRecord(
+        total_runs=total_runs,
+        total_tokens=total_tokens,
+        avg_tps=round(avg_tps, 2),
+        avg_ttft_ms=round(avg_ttft_ms, 2),
+        model_breakdown=model_breakdown,
     )

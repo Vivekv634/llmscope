@@ -150,3 +150,86 @@ class TestDatabaseStore:
 
     def test_close_does_not_raise(self, db: DatabaseStore) -> None:
         db.close()
+
+    def test_finalize_persists_quality_score(self, db: DatabaseStore) -> None:
+        db.record_start(_start_event())
+        for i, text in enumerate(["the", "cat", "sat", "on", "the", "mat"]):
+            db.record_token(
+                TokenEvent(
+                    type="token",
+                    run_id="r1",
+                    position=i,
+                    text=text,
+                    arrived_at_ms=float(i * 100),
+                )
+            )
+        db.finalize_run(DoneEvent(type="done", run_id="r1", total_ms=600.0))
+        run = db.get_run("r1")
+        assert run is not None
+        assert run.quality_score is not None
+        assert 0.0 <= run.quality_score <= 1.0
+
+    def test_set_tags_updates_run(self, db: DatabaseStore) -> None:
+        db.record_start(_start_event())
+        db.set_tags("r1", ["fast", "prod"])
+        run = db.get_run("r1")
+        assert run is not None
+        assert "fast" in run.tags
+        assert "prod" in run.tags
+
+    def test_set_tags_replaces_existing(self, db: DatabaseStore) -> None:
+        db.record_start(_start_event())
+        db.set_tags("r1", ["a", "b"])
+        db.set_tags("r1", ["c"])
+        run = db.get_run("r1")
+        assert run is not None
+        assert run.tags == ["c"]
+
+    def test_set_tags_empty_clears_all(self, db: DatabaseStore) -> None:
+        db.record_start(_start_event())
+        db.set_tags("r1", ["x"])
+        db.set_tags("r1", [])
+        run = db.get_run("r1")
+        assert run is not None
+        assert run.tags == []
+
+    def test_get_stats_empty_db(self, db: DatabaseStore) -> None:
+        stats = db.get_stats()
+        assert stats.total_runs == 0
+        assert stats.total_tokens == 0
+        assert stats.avg_tps == 0.0
+        assert stats.avg_ttft_ms == 0.0
+        assert stats.model_breakdown == {}
+
+    def test_get_stats_counts_runs_and_tokens(self, db: DatabaseStore) -> None:
+        db.record_start(_start_event(run_id="r1", model="llama3"))
+        db.record_start(_start_event(run_id="r2", model="mistral"))
+        for i in range(3):
+            db.record_token(
+                TokenEvent(type="token", run_id="r1", position=i, text="a", arrived_at_ms=float(i))
+            )
+        db.record_token(
+            TokenEvent(type="token", run_id="r2", position=0, text="b", arrived_at_ms=1.0)
+        )
+        stats = db.get_stats()
+        assert stats.total_runs == 2
+        assert stats.total_tokens == 4
+
+    def test_get_stats_model_breakdown(self, db: DatabaseStore) -> None:
+        db.record_start(_start_event(run_id="r1", model="llama3"))
+        db.record_start(_start_event(run_id="r2", model="llama3"))
+        db.record_start(_start_event(run_id="r3", model="mistral"))
+        stats = db.get_stats()
+        assert stats.model_breakdown["llama3"] == 2
+        assert stats.model_breakdown["mistral"] == 1
+
+    def test_get_stats_avg_tps_after_finalize(self, db: DatabaseStore) -> None:
+        db.record_start(_start_event())
+        for i in range(4):
+            db.record_token(
+                TokenEvent(type="token", run_id="r1", position=i, text="x", arrived_at_ms=float(i * 50))
+            )
+        db.finalize_run(DoneEvent(type="done", run_id="r1", total_ms=400.0))
+        stats = db.get_stats()
+        assert stats.avg_tps > 0.0
+        assert stats.avg_ttft_ms == 0.0

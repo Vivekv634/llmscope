@@ -23,5 +23,7 @@ htmlcov/
 node_modules/
 dashboard/.next/
 dashboard/out/
+llmscope/static/*
+!llmscope/static/.gitkeep
 .DS_Store
 /tmp

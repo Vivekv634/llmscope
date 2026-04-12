@@ -168,6 +168,82 @@ class TestGetSignals:
         assert resp.status_code == 404
 
 
+class TestUpdateTags:
+    def test_sets_tags_on_existing_run(self) -> None:
+        client, db = _make_app()
+        run_id = _seed_run(db)
+        resp = client.put(
+            f"/api/runs/{run_id}/tags",
+            json={"tags": ["fast", "prod"]},
+        )
+        assert resp.status_code == 200
+        body: dict[str, Any] = resp.json()
+        assert "fast" in body["tags"]
+        assert "prod" in body["tags"]
+
+    def test_replaces_existing_tags(self) -> None:
+        client, db = _make_app()
+        run_id = _seed_run(db)
+        client.put(f"/api/runs/{run_id}/tags", json={"tags": ["old"]})
+        resp = client.put(f"/api/runs/{run_id}/tags", json={"tags": ["new"]})
+        assert resp.json()["tags"] == ["new"]
+
+    def test_returns_404_for_unknown_run(self) -> None:
+        client, _ = _make_app()
+        resp = client.put("/api/runs/no-such/tags", json={"tags": ["x"]})
+        assert resp.status_code == 404
+
+    def test_empty_tags_clears_all(self) -> None:
+        client, db = _make_app()
+        run_id = _seed_run(db)
+        client.put(f"/api/runs/{run_id}/tags", json={"tags": ["a"]})
+        resp = client.put(f"/api/runs/{run_id}/tags", json={"tags": []})
+        assert resp.json()["tags"] == []
+
+
+class TestQualityScorePersistence:
+    def test_quality_score_set_after_finalize(self) -> None:
+        client, db = _make_app()
+        run_id = _seed_run(db)
+        resp = client.get(f"/api/runs/{run_id}")
+        assert resp.status_code == 200
+        assert resp.json()["quality_score"] is not None
+
+    def test_quality_score_in_valid_range(self) -> None:
+        client, db = _make_app()
+        run_id = _seed_run(db)
+        score = client.get(f"/api/runs/{run_id}").json()["quality_score"]
+        assert 0.0 <= score <= 1.0
+
+
+class TestGetStats:
+    def test_returns_zero_stats_on_empty_db(self) -> None:
+        client, _ = _make_app()
+        resp = client.get("/api/stats")
+        assert resp.status_code == 200
+        body: dict[str, Any] = resp.json()
+        assert body["total_runs"] == 0
+        assert body["total_tokens"] == 0
+        assert body["avg_tps"] == 0.0
+        assert body["model_breakdown"] == {}
+
+    def test_counts_seeded_run(self) -> None:
+        client, db = _make_app()
+        _seed_run(db)
+        resp = client.get("/api/stats")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total_runs"] == 1
+        assert body["total_tokens"] == 2
+
+    def test_model_breakdown_included(self) -> None:
+        client, db = _make_app()
+        _seed_run(db, "run-aaa11111")
+        _seed_run(db, "run-bbb22222")
+        body = client.get("/api/stats").json()
+        assert body["model_breakdown"].get("llama3.2") == 2
+
+
 class TestListModels:
     def test_returns_model_names_from_backend(self) -> None:
         client, _ = _make_app()
