@@ -1,9 +1,3 @@
-"""Tests for llmscope/types/signals.py.
-
-Covers: LatencyResult, QualityResult, DriftResult — field constraints,
-boundary values, and serialisation round-trips.
-"""
-
 from __future__ import annotations
 
 import pytest

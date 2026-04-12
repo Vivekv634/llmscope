@@ -1,9 +1,3 @@
-"""Tests for llmscope/types/runs.py.
-
-Covers: RunRecord, TokenRecord, OutputRecord — field validation,
-optional fields, boundary values, and serialisation round-trips.
-"""
-
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -91,8 +85,8 @@ class TestRunRecord:
 class TestTokenRecord:
     def test_valid_construction(self) -> None:
         record = TokenRecord(run_id="r1", position=0, text="Hi", arrived_at_ms=0.0)
-        assert record.id is None
         assert record.position == 0
+        assert record.text == "Hi"
 
     def test_position_negative_rejected(self) -> None:
         with pytest.raises(ValidationError):
@@ -102,16 +96,16 @@ class TestTokenRecord:
         with pytest.raises(ValidationError):
             TokenRecord(run_id="r1", position=0, text="x", arrived_at_ms=-0.1)
 
-    def test_id_provided(self) -> None:
-        record = TokenRecord(id=42, run_id="r1", position=0, text="x", arrived_at_ms=1.0)
-        assert record.id == 42
+    def test_arrived_at_ms_zero_allowed(self) -> None:
+        record = TokenRecord(run_id="r1", position=0, text="x", arrived_at_ms=0.0)
+        assert record.arrived_at_ms == 0.0
 
-    def test_id_must_be_ge_one(self) -> None:
+    def test_run_id_empty_rejected(self) -> None:
         with pytest.raises(ValidationError):
-            TokenRecord(id=0, run_id="r1", position=0, text="x", arrived_at_ms=1.0)
+            TokenRecord(run_id="", position=0, text="x", arrived_at_ms=0.0)
 
     def test_serialisation_round_trip(self) -> None:
-        record = TokenRecord(id=1, run_id="r1", position=5, text="world", arrived_at_ms=22.2)
+        record = TokenRecord(run_id="r1", position=5, text="world", arrived_at_ms=22.2)
         restored = TokenRecord.model_validate_json(record.model_dump_json())
         assert restored == record
 

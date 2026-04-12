@@ -1,9 +1,3 @@
-"""Tests for llmscope/types/events.py.
-
-Covers: model construction, field validation, discriminated union parsing,
-and rejection of invalid payloads. Every public field constraint is tested.
-"""
-
 from __future__ import annotations
 
 import pytest
@@ -12,13 +6,69 @@ from pydantic import TypeAdapter, ValidationError
 from llmscope.types.events import (
     DoneEvent,
     QueueEvent,
+    RunStartEvent,
     TTFTEvent,
     TokenEvent,
 )
 
-# ---------------------------------------------------------------------------
-# TTFTEvent
-# ---------------------------------------------------------------------------
+
+class TestRunStartEvent:
+    def test_valid_construction(self) -> None:
+        event = RunStartEvent(
+            type="start",
+            run_id="r1",
+            model="llama3",
+            backend="ollama",
+            prompt_hash="abc123",
+            prompt_text="hello",
+        )
+        assert event.model == "llama3"
+        assert event.backend == "ollama"
+
+    def test_run_id_empty_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            RunStartEvent(
+                type="start",
+                run_id="",
+                model="llama3",
+                backend="ollama",
+                prompt_hash="abc",
+                prompt_text="hi",
+            )
+
+    def test_model_empty_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            RunStartEvent(
+                type="start",
+                run_id="r1",
+                model="",
+                backend="ollama",
+                prompt_hash="abc",
+                prompt_text="hi",
+            )
+
+    def test_empty_prompt_text_allowed(self) -> None:
+        event = RunStartEvent(
+            type="start",
+            run_id="r1",
+            model="llama3",
+            backend="ollama",
+            prompt_hash="abc",
+            prompt_text="",
+        )
+        assert event.prompt_text == ""
+
+    def test_serialisation_round_trip(self) -> None:
+        event = RunStartEvent(
+            type="start",
+            run_id="r1",
+            model="llama3",
+            backend="ollama",
+            prompt_hash="deadbeef",
+            prompt_text="test prompt",
+        )
+        restored = RunStartEvent.model_validate_json(event.model_dump_json())
+        assert restored == event
 
 
 class TestTTFTEvent:
@@ -48,11 +98,6 @@ class TestTTFTEvent:
         event = TTFTEvent(type="ttft", run_id="abc123", ttft_ms=100.0)
         restored = TTFTEvent.model_validate_json(event.model_dump_json())
         assert restored == event
-
-
-# ---------------------------------------------------------------------------
-# TokenEvent
-# ---------------------------------------------------------------------------
 
 
 class TestTokenEvent:
@@ -88,7 +133,6 @@ class TestTokenEvent:
             )
 
     def test_empty_text_is_valid(self) -> None:
-        # Empty tokens can arrive from backends — not an error
         event = TokenEvent(
             type="token", run_id="r1", position=0, text="", arrived_at_ms=0.0
         )
@@ -100,11 +144,6 @@ class TestTokenEvent:
         )
         restored = TokenEvent.model_validate_json(event.model_dump_json())
         assert restored == event
-
-
-# ---------------------------------------------------------------------------
-# DoneEvent
-# ---------------------------------------------------------------------------
 
 
 class TestDoneEvent:
@@ -126,15 +165,14 @@ class TestDoneEvent:
         assert restored == event
 
 
-# ---------------------------------------------------------------------------
-# QueueEvent discriminated union
-# ---------------------------------------------------------------------------
-
-
 class TestQueueEventUnion:
-    """Verifies that the discriminated union dispatches to the correct model."""
-
     _adapter: TypeAdapter[QueueEvent] = TypeAdapter(QueueEvent)
+
+    def test_parse_start_payload(self) -> None:
+        raw = '{"type":"start","run_id":"r1","model":"llama3","backend":"ollama","prompt_hash":"abc","prompt_text":"hi"}'
+        event = self._adapter.validate_json(raw)
+        assert isinstance(event, RunStartEvent)
+        assert event.model == "llama3"
 
     def test_parse_ttft_payload(self) -> None:
         raw = '{"type": "ttft", "run_id": "r1", "ttft_ms": 50.0}'

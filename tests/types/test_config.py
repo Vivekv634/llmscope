@@ -1,9 +1,3 @@
-"""Tests for llmscope/types/config.py.
-
-Covers: default values, env var overrides, field constraints, and
-Literal validation for backend selection.
-"""
-
 from __future__ import annotations
 
 import pytest
