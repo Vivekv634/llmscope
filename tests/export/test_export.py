@@ -96,7 +96,7 @@ class TestCsvExporter:
 
     @pytest.mark.asyncio
     async def test_tags_joined_by_comma(self, tmp_path: Path) -> None:
-        run = _make_run()
+        _make_run()
         run2 = RunRecord(
             run_id="run-tag",
             model="m",

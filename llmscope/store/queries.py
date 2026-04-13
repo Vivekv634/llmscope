@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from typing import Any, Optional
+from typing import Any
 
 import duckdb
 
@@ -42,8 +42,8 @@ def _to_run_record(row: tuple[Any, ...]) -> RunRecord:
 
 def get_run_by_id(
     conn: duckdb.DuckDBPyConnection, run_id: str
-) -> Optional[RunRecord]:
-    row: Optional[tuple[Any, ...]] = conn.execute(
+) -> RunRecord | None:
+    row: tuple[Any, ...] | None = conn.execute(
         f"SELECT {_RUN_COLUMNS} FROM runs WHERE run_id = ?", [run_id]
     ).fetchone()
     if row is None:
@@ -52,13 +52,46 @@ def get_run_by_id(
 
 
 def list_runs(
-    conn: duckdb.DuckDBPyConnection, limit: int = 50
+    conn: duckdb.DuckDBPyConnection,
+    limit: int = 50,
+    model: str | None = None,
+    tag: str | None = None,
+    q: str | None = None,
 ) -> list[RunRecord]:
+    conditions: list[str] = []
+    params: list[Any] = []
+
+    if model is not None:
+        conditions.append("model = ?")
+        params.append(model)
+    if tag is not None:
+        conditions.append("tags LIKE ?")
+        params.append(f'%"{tag}"%')
+    if q is not None:
+        conditions.append("prompt_text ILIKE ?")
+        params.append(f"%{q}%")
+
+    where: str = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    params.append(limit)
     rows: list[tuple[Any, ...]] = conn.execute(
-        f"SELECT {_RUN_COLUMNS} FROM runs ORDER BY created_at DESC LIMIT ?",
-        [limit],
+        f"SELECT {_RUN_COLUMNS} FROM runs {where} ORDER BY created_at DESC LIMIT ?",
+        params,
     ).fetchall()
     return [_to_run_record(row) for row in rows]
+
+
+def list_tags(conn: duckdb.DuckDBPyConnection) -> list[str]:
+    rows: list[tuple[Any, ...]] = conn.execute(
+        "SELECT DISTINCT tags FROM runs WHERE tags IS NOT NULL AND tags != '[]'"
+    ).fetchall()
+    seen: set[str] = set()
+    for row in rows:
+        try:
+            for tag in json.loads(str(row[0])):
+                seen.add(str(tag))
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return sorted(seen)
 
 
 def get_tokens_for_run(
@@ -82,8 +115,8 @@ def get_tokens_for_run(
 
 def get_output_for_run(
     conn: duckdb.DuckDBPyConnection, run_id: str
-) -> Optional[OutputRecord]:
-    row: Optional[tuple[Any, ...]] = conn.execute(
+) -> OutputRecord | None:
+    row: tuple[Any, ...] | None = conn.execute(
         "SELECT run_id, full_text, token_count FROM outputs WHERE run_id = ?",
         [run_id],
     ).fetchone()
@@ -97,22 +130,22 @@ def get_output_for_run(
 
 
 def get_stats(conn: duckdb.DuckDBPyConnection) -> StatsRecord:
-    total_runs_row: Optional[tuple[Any, ...]] = conn.execute(
+    total_runs_row: tuple[Any, ...] | None = conn.execute(
         "SELECT COUNT(*) FROM runs"
     ).fetchone()
     total_runs: int = int(total_runs_row[0]) if total_runs_row else 0
 
-    total_tokens_row: Optional[tuple[Any, ...]] = conn.execute(
+    total_tokens_row: tuple[Any, ...] | None = conn.execute(
         "SELECT COUNT(*) FROM tokens"
     ).fetchone()
     total_tokens: int = int(total_tokens_row[0]) if total_tokens_row else 0
 
-    avg_tps_row: Optional[tuple[Any, ...]] = conn.execute(
+    avg_tps_row: tuple[Any, ...] | None = conn.execute(
         "SELECT COALESCE(AVG(tps), 0) FROM runs WHERE tps IS NOT NULL"
     ).fetchone()
     avg_tps: float = float(avg_tps_row[0]) if avg_tps_row else 0.0
 
-    avg_ttft_row: Optional[tuple[Any, ...]] = conn.execute(
+    avg_ttft_row: tuple[Any, ...] | None = conn.execute(
         "SELECT COALESCE(AVG(ttft_ms), 0) FROM runs WHERE ttft_ms IS NOT NULL"
     ).fetchone()
     avg_ttft_ms: float = float(avg_ttft_row[0]) if avg_ttft_row else 0.0

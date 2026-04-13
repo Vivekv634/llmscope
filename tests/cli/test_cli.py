@@ -10,7 +10,7 @@ from click.testing import CliRunner
 
 from llmscope.cli import main
 from llmscope.store.db import DatabaseStore
-from llmscope.types.events import DoneEvent, RunStartEvent, TTFTEvent, TokenEvent
+from llmscope.types.events import DoneEvent, RunStartEvent, TokenEvent, TTFTEvent
 
 
 @pytest.fixture
@@ -38,10 +38,14 @@ def _seed(db: DatabaseStore, run_id: str = "run-abc12345") -> str:
     )
     db.record_ttft(TTFTEvent(type="ttft", run_id=run_id, ttft_ms=120.5))
     db.record_token(
-        TokenEvent(type="token", run_id=run_id, position=0, text="Hello", arrived_at_ms=120.5)
+        TokenEvent(
+            type="token", run_id=run_id, position=0, text="Hello", arrived_at_ms=120.5
+        )
     )
     db.record_token(
-        TokenEvent(type="token", run_id=run_id, position=1, text=" world", arrived_at_ms=200.0)
+        TokenEvent(
+            type="token", run_id=run_id, position=1, text=" world", arrived_at_ms=200.0
+        )
     )
     db.finalize_run(DoneEvent(type="done", run_id=run_id, total_ms=800.0))
     return run_id
@@ -98,9 +102,11 @@ class TestInspectList:
         for i in range(5):
             _seed(db, f"run-{i:03d}xxxxx")
         db.close()
-        result = runner.invoke(main, ["inspect", "list", "--db", db_path, "--limit", "2"])
+        result = runner.invoke(
+            main, ["inspect", "list", "--db", db_path, "--limit", "2"]
+        )
         assert result.exit_code == 0
-        lines = [l for l in result.output.splitlines() if "run-" in l]
+        lines = [ln for ln in result.output.splitlines() if "run-" in ln]
         assert len(lines) == 2
 
 
@@ -132,7 +138,9 @@ class TestInspectShow:
     ) -> None:
         db, db_path = tmp_db
         db.close()
-        result = runner.invoke(main, ["inspect", "show", "no-such-run", "--db", db_path])
+        result = runner.invoke(
+            main, ["inspect", "show", "no-such-run", "--db", db_path]
+        )
         assert result.exit_code == 0
         assert "not found" in result.output
 
@@ -260,7 +268,10 @@ class TestInit:
 
 class TestExport:
     def test_json_export(
-        self, runner: CliRunner, tmp_db: tuple[DatabaseStore, str], tmp_path: pathlib.Path
+        self,
+        runner: CliRunner,
+        tmp_db: tuple[DatabaseStore, str],
+        tmp_path: pathlib.Path,
     ) -> None:
         db, db_path = tmp_db
         _seed(db)
@@ -275,7 +286,10 @@ class TestExport:
         assert data[0]["model"] == "llama3.2"
 
     def test_csv_export(
-        self, runner: CliRunner, tmp_db: tuple[DatabaseStore, str], tmp_path: pathlib.Path
+        self,
+        runner: CliRunner,
+        tmp_db: tuple[DatabaseStore, str],
+        tmp_path: pathlib.Path,
     ) -> None:
         db, db_path = tmp_db
         _seed(db)
@@ -289,7 +303,10 @@ class TestExport:
         assert "llama3.2" in content
 
     def test_html_export(
-        self, runner: CliRunner, tmp_db: tuple[DatabaseStore, str], tmp_path: pathlib.Path
+        self,
+        runner: CliRunner,
+        tmp_db: tuple[DatabaseStore, str],
+        tmp_path: pathlib.Path,
     ) -> None:
         db, db_path = tmp_db
         _seed(db)
@@ -304,7 +321,10 @@ class TestExport:
         assert "llama3.2" in content
 
     def test_export_prints_count(
-        self, runner: CliRunner, tmp_db: tuple[DatabaseStore, str], tmp_path: pathlib.Path
+        self,
+        runner: CliRunner,
+        tmp_db: tuple[DatabaseStore, str],
+        tmp_path: pathlib.Path,
     ) -> None:
         db, db_path = tmp_db
         _seed(db)
@@ -359,7 +379,10 @@ class TestCompareDrift:
         db.close()
         result = runner.invoke(
             main,
-            ["compare", "drift", "--run-a", "no-such", "--run-b", run_b, "--db", db_path],
+            [
+                "compare", "drift",
+                "--run-a", "no-such", "--run-b", run_b, "--db", db_path,
+            ],
         )
         assert result.exit_code == 0
         assert "not found" in result.output

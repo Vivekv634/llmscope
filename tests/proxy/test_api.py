@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, UTC
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -11,7 +10,7 @@ from llmscope.proxy.backends.ollama import OllamaBackend
 from llmscope.proxy.server import create_app
 from llmscope.store.db import DatabaseStore
 from llmscope.types.config import AppConfig
-from llmscope.types.events import DoneEvent, RunStartEvent, TTFTEvent, TokenEvent
+from llmscope.types.events import DoneEvent, RunStartEvent, TokenEvent, TTFTEvent
 
 
 def _make_app() -> tuple[TestClient, DatabaseStore]:
@@ -80,6 +79,80 @@ class TestListRuns:
         resp = client.get("/api/runs?limit=3")
         assert resp.status_code == 200
         assert len(resp.json()) == 3
+
+    def test_model_filter_returns_matching_runs(self) -> None:
+        client, db = _make_app()
+        _seed_run(db, "run-aaa11111")
+        db.record_start(
+            RunStartEvent(
+                type="start", run_id="run-bbb22222", model="mistral",
+                backend="ollama", prompt_hash="h2", prompt_text="hi",
+            )
+        )
+        resp = client.get("/api/runs?model=llama3.2")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["model"] == "llama3.2"
+
+    def test_model_filter_no_match_returns_empty(self) -> None:
+        client, db = _make_app()
+        _seed_run(db)
+        resp = client.get("/api/runs?model=nonexistent")
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    def test_tag_filter_returns_tagged_runs(self) -> None:
+        client, db = _make_app()
+        run_id = _seed_run(db, "run-aaa11111")
+        _seed_run(db, "run-bbb22222")
+        db.set_tags(run_id, ["prod"])
+        resp = client.get("/api/runs?tag=prod")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["run_id"] == run_id
+
+    def test_q_filter_matches_prompt_text(self) -> None:
+        client, db = _make_app()
+        _seed_run(db)
+        resp = client.get("/api/runs?q=hello")
+        assert resp.status_code == 200
+        assert len(resp.json()) == 1
+
+    def test_q_filter_no_match_returns_empty(self) -> None:
+        client, db = _make_app()
+        _seed_run(db)
+        resp = client.get("/api/runs?q=zzznomatch")
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+
+class TestListTags:
+    def test_empty_when_no_tags(self) -> None:
+        client, _ = _make_app()
+        resp = client.get("/api/tags")
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    def test_returns_tags_from_runs(self) -> None:
+        client, db = _make_app()
+        run_id = _seed_run(db)
+        db.set_tags(run_id, ["fast", "prod"])
+        resp = client.get("/api/tags")
+        assert resp.status_code == 200
+        tags: list[str] = resp.json()
+        assert "fast" in tags
+        assert "prod" in tags
+
+    def test_deduplicates_across_runs(self) -> None:
+        client, db = _make_app()
+        r1 = _seed_run(db, "run-aaa11111")
+        r2 = _seed_run(db, "run-bbb22222")
+        db.set_tags(r1, ["prod"])
+        db.set_tags(r2, ["prod", "fast"])
+        tags = client.get("/api/tags").json()
+        assert tags.count("prod") == 1
 
 
 class TestGetRun:

@@ -4,7 +4,7 @@ import asyncio
 import logging
 import os
 import time
-from typing import Literal, Optional, cast
+from typing import Literal, cast
 
 import click
 import httpx
@@ -37,7 +37,7 @@ def main() -> None:
 )
 @click.option("--port", default=8080, type=int, show_default=True)
 @click.option("--backend-url", default=None, type=str)
-def start(backend: str, port: int, backend_url: Optional[str]) -> None:
+def start(backend: str, port: int, backend_url: str | None) -> None:
     logging.basicConfig(level=logging.INFO, format="[llmscope] %(message)s")
 
     backend_literal: Literal["ollama", "llamacpp"] = cast(
@@ -72,7 +72,7 @@ def start(backend: str, port: int, backend_url: Optional[str]) -> None:
 
 @main.command()
 @click.option("--backend-url", default=None, type=str)
-def init(backend_url: Optional[str]) -> None:
+def init(backend_url: str | None) -> None:
     config: AppConfig = (
         AppConfig(backend_url=backend_url) if backend_url is not None else AppConfig()
     )
@@ -92,10 +92,13 @@ def init(backend_url: Optional[str]) -> None:
         resp.raise_for_status()
         click.echo(f"[ok] backend        : {config.backend_url}")
     except httpx.HTTPError:
-        click.echo(f"[!] backend         : {config.backend_url} (unreachable — start it before running the proxy)")
+        click.echo(
+            f"[!] backend         : {config.backend_url}"
+            " (unreachable — start it before running the proxy)"
+        )
 
     click.echo("")
-    click.echo(f"run:  llmscope start")
+    click.echo("run:  llmscope start")
 
 
 @main.command()
@@ -156,13 +159,14 @@ def inspect_list(db: str, limit: int) -> None:
     if not runs:
         click.echo("no runs found")
         return
-    header: str = f"{'RUN ID':<10}  {'MODEL':<30}  {'BACKEND':<8}  {'TPS':>7}  {'TOKENS':>7}  {'QUALITY':>8}"
+    cols = f"{'RUN ID':<10}  {'MODEL':<30}  {'BACKEND':<8}"
+    header: str = f"{cols}  {'TPS':>7}  {'TOKENS':>7}  {'QUALITY':>8}"
     click.echo(header)
     click.echo("-" * len(header))
     for run in runs:
         tps_str: str = f"{run.tps:.2f}" if run.tps is not None else "?"
         tok_str: str = str(run.token_count) if run.token_count is not None else "?"
-        qs_str: str = f"{run.quality_score:.3f}" if run.quality_score is not None else "?"
+        qs_str = f"{run.quality_score:.3f}" if run.quality_score is not None else "?"
         click.echo(
             f"{run.run_id[:8]:<10}  {run.model:<30}  {run.backend:<8}  "
             f"{tps_str:>7}  {tok_str:>7}  {qs_str:>8}"
@@ -350,9 +354,9 @@ def config() -> None:
 @click.option("--port", default=None, type=int)
 @click.option("--backend-url", default=None, type=str)
 def config_show(
-    backend: Optional[str],
-    port: Optional[int],
-    backend_url: Optional[str],
+    backend: str | None,
+    port: int | None,
+    backend_url: str | None,
 ) -> None:
     backend_literal: Literal["ollama", "llamacpp"] = cast(
         Literal["ollama", "llamacpp"], backend or "ollama"

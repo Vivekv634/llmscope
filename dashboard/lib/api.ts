@@ -20,8 +20,24 @@ export async function listModels(): Promise<string[]> {
   return apiFetch<string[]>("/api/models");
 }
 
-export async function listRuns(limit = 50): Promise<RunRecord[]> {
-  return apiFetch<RunRecord[]>(`/api/runs?limit=${limit}`);
+export interface RunsFilter {
+  limit?: number;
+  model?: string;
+  tag?: string;
+  q?: string;
+}
+
+export async function listRuns(filter: RunsFilter = {}): Promise<RunRecord[]> {
+  const { limit = 50, model, tag, q } = filter;
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (model) params.set("model", model);
+  if (tag) params.set("tag", tag);
+  if (q) params.set("q", q);
+  return apiFetch<RunRecord[]>(`/api/runs?${params.toString()}`);
+}
+
+export async function listTags(): Promise<string[]> {
+  return apiFetch<string[]>("/api/tags");
 }
 
 export async function getRun(runId: string): Promise<RunRecord> {

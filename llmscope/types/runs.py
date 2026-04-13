@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -11,13 +10,13 @@ class RunRecord(BaseModel):
     model: str = Field(min_length=1)
     backend: str = Field(min_length=1)
     prompt_hash: str = Field(min_length=1)
-    prompt_text: Optional[str] = None
+    prompt_text: str | None = None
     created_at: datetime
-    ttft_ms: Optional[float] = Field(default=None, gt=0)
-    total_ms: Optional[float] = Field(default=None, gt=0)
-    token_count: Optional[int] = Field(default=None, ge=0)
-    tps: Optional[float] = Field(default=None, ge=0)
-    quality_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    ttft_ms: float | None = Field(default=None, gt=0)
+    total_ms: float | None = Field(default=None, gt=0)
+    token_count: int | None = Field(default=None, ge=0)
+    tps: float | None = Field(default=None, ge=0)
+    quality_score: float | None = Field(default=None, ge=0.0, le=1.0)
     tags: list[str] = Field(default_factory=list)
 
 

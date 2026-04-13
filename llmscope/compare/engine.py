@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 import time
-from typing import Optional
 
 import httpx
 from pydantic import BaseModel, Field
 
 from llmscope.signals.quality import output_entropy
 from llmscope.types.signals import QualityResult
+
+_logger = logging.getLogger(__name__)
+_PER_MODEL_TIMEOUT_S: float = 120.0
 
 
 class CompareResult(BaseModel):
@@ -25,7 +29,7 @@ async def _run_single(
     prompt: str,
     model: str,
     backend_url: str,
-    transport: Optional[httpx.AsyncBaseTransport] = None,
+    transport: httpx.AsyncBaseTransport | None = None,
 ) -> CompareResult:
     tokens: list[str] = []
     t0: float = time.monotonic()
@@ -37,12 +41,15 @@ async def _run_single(
     else:
         client_ctx = httpx.AsyncClient()
 
+    timeout = httpx.Timeout(
+        connect=10.0, read=_PER_MODEL_TIMEOUT_S, write=10.0, pool=10.0
+    )
     async with client_ctx as client:
         async with client.stream(
             "POST",
             f"{backend_url}/api/generate",
             json={"model": model, "prompt": prompt},
-            timeout=None,
+            timeout=timeout,
         ) as resp:
             async for line in resp.aiter_lines():
                 if not line:
@@ -80,12 +87,18 @@ async def compare_models(
     prompt: str,
     models: list[str],
     backend_url: str,
-    transport: Optional[httpx.AsyncBaseTransport] = None,
+    transport: httpx.AsyncBaseTransport | None = None,
 ) -> list[CompareResult]:
+    tasks = [
+        _run_single(prompt, model, backend_url, transport) for model in models
+    ]
+    raw = await asyncio.gather(*tasks, return_exceptions=True)
     results: list[CompareResult] = []
-    for model in models:
-        result: CompareResult = await _run_single(
-            prompt, model, backend_url, transport
-        )
-        results.append(result)
+    for model, outcome in zip(models, raw):
+        if isinstance(outcome, BaseException):
+            _logger.error("model %s failed: %s", model, outcome)
+        else:
+            results.append(outcome)
+    if not results:
+        raise RuntimeError("all models failed")
     return results

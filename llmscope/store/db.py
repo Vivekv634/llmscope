@@ -8,10 +8,10 @@ from datetime import UTC, datetime
 import duckdb
 
 from llmscope.signals.quality import output_entropy
-from llmscope.types.events import DoneEvent, RunStartEvent, TTFTEvent, TokenEvent
+from llmscope.store import queries
+from llmscope.types.events import DoneEvent, RunStartEvent, TokenEvent, TTFTEvent
 from llmscope.types.runs import OutputRecord, RunRecord, TokenRecord
 from llmscope.types.stats import StatsRecord
-from llmscope.store import queries
 
 SCHEMA_VERSION: int = 1
 
@@ -126,8 +126,17 @@ class DatabaseStore:
     def get_run(self, run_id: str) -> RunRecord | None:
         return queries.get_run_by_id(self._conn, run_id)
 
-    def list_runs(self, limit: int = 50) -> list[RunRecord]:
-        return queries.list_runs(self._conn, limit)
+    def list_runs(
+        self,
+        limit: int = 50,
+        model: str | None = None,
+        tag: str | None = None,
+        q: str | None = None,
+    ) -> list[RunRecord]:
+        return queries.list_runs(self._conn, limit, model=model, tag=tag, q=q)
+
+    def list_tags(self) -> list[str]:
+        return queries.list_tags(self._conn)
 
     def get_tokens(self, run_id: str) -> list[TokenRecord]:
         return queries.get_tokens_for_run(self._conn, run_id)

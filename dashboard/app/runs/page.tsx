@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { getOutput, getRun, getSignals, getTokens } from "@/lib/api";
 import { LatencyTimeline } from "@/components/LatencyTimeline";
+import { TokenHeatmap } from "@/components/TokenHeatmap";
 import { LiveFeed } from "@/components/LiveFeed";
 import { QualityScore } from "@/components/QualityScore";
 import { TagEditor } from "@/components/TagEditor";
@@ -103,20 +104,32 @@ function RunDetail({ runId }: { runId: string }) {
       </div>
 
       {signals && (
-        <div className="grid md:grid-cols-2 gap-6">
+        <>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <h2 className="text-sm font-medium text-gray-500 mb-3">
+                Latency Timeline
+              </h2>
+              <LatencyTimeline points={latencyPoints} />
+            </div>
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <h2 className="text-sm font-medium text-gray-500 mb-3">
+                Quality Score
+              </h2>
+              <QualityScore result={signals.quality} />
+            </div>
+          </div>
+
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <h2 className="text-sm font-medium text-gray-500 mb-3">
-              Latency Timeline
+              Token Heatmap
             </h2>
-            <LatencyTimeline points={latencyPoints} />
+            <TokenHeatmap
+              points={latencyPoints}
+              tokens={tokens.map((t) => t.text)}
+            />
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <h2 className="text-sm font-medium text-gray-500 mb-3">
-              Quality Score
-            </h2>
-            <QualityScore result={signals.quality} />
-          </div>
-        </div>
+        </>
       )}
 
       <div className="bg-white border border-gray-200 rounded-lg p-4">

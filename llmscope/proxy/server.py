@@ -5,21 +5,18 @@ import logging
 import pathlib
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Optional
 
 import httpx
-
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-_STATIC_DIR: pathlib.Path = pathlib.Path(__file__).parent.parent / "static"
-
 from llmscope.compare.engine import CompareResult, compare_models
 from llmscope.proxy.backends.base import AbstractBackend
 from llmscope.proxy.interceptor import intercept_stream
+from llmscope.signals.drift import cosine_drift
 from llmscope.signals.latency import compute_latency
 from llmscope.signals.quality import output_entropy
 from llmscope.store.db import DatabaseStore
@@ -28,15 +25,15 @@ from llmscope.types.events import (
     DoneEvent,
     QueueEvent,
     RunStartEvent,
-    TTFTEvent,
     TokenEvent,
+    TTFTEvent,
 )
-from llmscope.signals.drift import cosine_drift
 from llmscope.types.runs import OutputRecord, RunRecord, TokenRecord
 from llmscope.types.signals import DriftResult, SignalResponse
 from llmscope.types.stats import StatsRecord
 
 _logger: logging.Logger = logging.getLogger(__name__)
+_STATIC_DIR: pathlib.Path = pathlib.Path(__file__).parent.parent / "static"
 
 _Subscribers = dict[str, list[asyncio.Queue[str]]]
 
@@ -114,11 +111,14 @@ def create_app(
 
     @app.post("/api/compare", response_model=list[CompareResult])
     async def api_compare(body: CompareRequest) -> list[CompareResult]:
-        return await compare_models(
-            prompt=body.prompt,
-            models=body.models,
-            backend_url=config.backend_url,
-        )
+        try:
+            return await compare_models(
+                prompt=body.prompt,
+                models=body.models,
+                backend_url=config.backend_url,
+            )
+        except RuntimeError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     @app.post("/api/generate")
     async def proxy_generate(request: Request) -> StreamingResponse:
@@ -153,12 +153,21 @@ def create_app(
             raise HTTPException(status_code=502, detail="backend unreachable")
 
     @app.get("/api/runs", response_model=list[RunRecord])
-    async def list_runs(limit: int = 50) -> list[RunRecord]:
-        return db.list_runs(limit=limit)
+    async def list_runs(
+        limit: int = 50,
+        model: str | None = None,
+        tag: str | None = None,
+        q: str | None = None,
+    ) -> list[RunRecord]:
+        return db.list_runs(limit=limit, model=model, tag=tag, q=q)
+
+    @app.get("/api/tags", response_model=list[str])
+    async def list_tags() -> list[str]:
+        return db.list_tags()
 
     @app.get("/api/runs/{run_id}", response_model=RunRecord)
     async def get_run(run_id: str) -> RunRecord:
-        result: Optional[RunRecord] = db.get_run(run_id)
+        result: RunRecord | None = db.get_run(run_id)
         if result is None:
             raise HTTPException(status_code=404, detail="run not found")
         return result
@@ -169,14 +178,14 @@ def create_app(
 
     @app.get("/api/runs/{run_id}/output", response_model=OutputRecord)
     async def get_output(run_id: str) -> OutputRecord:
-        result: Optional[OutputRecord] = db.get_output(run_id)
+        result: OutputRecord | None = db.get_output(run_id)
         if result is None:
             raise HTTPException(status_code=404, detail="output not found")
         return result
 
     @app.get("/api/runs/{run_id}/signals", response_model=SignalResponse)
     async def get_signals(run_id: str) -> SignalResponse:
-        run: Optional[RunRecord] = db.get_run(run_id)
+        run: RunRecord | None = db.get_run(run_id)
         if run is None:
             raise HTTPException(status_code=404, detail="run not found")
         tokens: list[TokenRecord] = db.get_tokens(run_id)
@@ -194,15 +203,15 @@ def create_app(
         if db.get_run(run_id) is None:
             raise HTTPException(status_code=404, detail="run not found")
         db.set_tags(run_id, body.tags)
-        result: Optional[RunRecord] = db.get_run(run_id)
+        result: RunRecord | None = db.get_run(run_id)
         if result is None:
             raise HTTPException(status_code=404, detail="run not found")
         return result
 
     @app.get("/api/runs/{run_id}/drift", response_model=DriftResult)
     async def get_drift(run_id: str, compare_to: str) -> DriftResult:
-        run_a: Optional[RunRecord] = db.get_run(run_id)
-        run_b: Optional[RunRecord] = db.get_run(compare_to)
+        run_a: RunRecord | None = db.get_run(run_id)
+        run_b: RunRecord | None = db.get_run(compare_to)
         if run_a is None:
             raise HTTPException(status_code=404, detail=f"run not found: {run_id}")
         if run_b is None:

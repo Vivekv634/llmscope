@@ -3,25 +3,16 @@
 import { useEffect, useState } from "react";
 import { listRuns } from "@/lib/api";
 import { RunsFilter } from "@/components/RunsFilter";
-import type { RunRecord } from "@/types/api";
 
 export default function HomePage() {
-  const [runs, setRuns] = useState<RunRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    listRuns(50)
-      .then(setRuns)
-      .catch(() => setError("Could not reach proxy at http://localhost:8080"))
-      .finally(() => setLoading(false));
+    listRuns({ limit: 200 })
+      .then((runs) => setTotalCount(runs.length))
+      .catch(() => setError("Could not reach proxy at http://localhost:8080"));
   }, []);
-
-  if (loading) {
-    return (
-      <div className="py-12 text-center text-sm text-gray-400">Loading…</div>
-    );
-  }
 
   if (error) {
     return (
@@ -33,9 +24,11 @@ export default function HomePage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Inference Runs</h1>
-        <p className="text-sm text-gray-500 mt-1">{runs.length} run(s) recorded</p>
+        {totalCount !== null && (
+          <p className="text-sm text-gray-500 mt-1">{totalCount} run(s) recorded</p>
+        )}
       </div>
-      <RunsFilter runs={runs} />
+      <RunsFilter initialCount={totalCount ?? 0} />
     </div>
   );
 }

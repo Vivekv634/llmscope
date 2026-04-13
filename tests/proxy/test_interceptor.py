@@ -3,12 +3,11 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncGenerator
-from typing import Any
 
 import httpx
 import pytest
 from starlette.requests import Request
-from starlette.types import Message, Receive, Scope
+from starlette.types import Message, Scope
 
 from llmscope.proxy.backends.ollama import OllamaBackend
 from llmscope.proxy.interceptor import intercept_stream
@@ -17,8 +16,8 @@ from llmscope.types.events import (
     DoneEvent,
     QueueEvent,
     RunStartEvent,
-    TTFTEvent,
     TokenEvent,
+    TTFTEvent,
 )
 
 

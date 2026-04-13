@@ -5,7 +5,7 @@ import pathlib
 import pytest
 
 from llmscope.store.db import DatabaseStore
-from llmscope.types.events import DoneEvent, RunStartEvent, TTFTEvent, TokenEvent
+from llmscope.types.events import DoneEvent, RunStartEvent, TokenEvent, TTFTEvent
 
 
 @pytest.fixture
@@ -100,7 +100,9 @@ class TestDatabaseStore:
     def test_finalize_run_idempotent(self, db: DatabaseStore) -> None:
         db.record_start(_start_event())
         db.record_token(
-            TokenEvent(type="token", run_id="r1", position=0, text="Hi", arrived_at_ms=10.0)
+            TokenEvent(
+                type="token", run_id="r1", position=0, text="Hi", arrived_at_ms=10.0
+            )
         )
         done = DoneEvent(type="done", run_id="r1", total_ms=100.0)
         db.finalize_run(done)
@@ -206,10 +208,15 @@ class TestDatabaseStore:
         db.record_start(_start_event(run_id="r2", model="mistral"))
         for i in range(3):
             db.record_token(
-                TokenEvent(type="token", run_id="r1", position=i, text="a", arrived_at_ms=float(i))
+                TokenEvent(
+                    type="token", run_id="r1", position=i,
+                    text="a", arrived_at_ms=float(i),
+                )
             )
         db.record_token(
-            TokenEvent(type="token", run_id="r2", position=0, text="b", arrived_at_ms=1.0)
+            TokenEvent(
+                type="token", run_id="r2", position=0, text="b", arrived_at_ms=1.0
+            )
         )
         stats = db.get_stats()
         assert stats.total_runs == 2
@@ -227,9 +234,74 @@ class TestDatabaseStore:
         db.record_start(_start_event())
         for i in range(4):
             db.record_token(
-                TokenEvent(type="token", run_id="r1", position=i, text="x", arrived_at_ms=float(i * 50))
+                TokenEvent(
+                    type="token",
+                    run_id="r1",
+                    position=i,
+                    text="x",
+                    arrived_at_ms=float(i * 50),
+                )
             )
         db.finalize_run(DoneEvent(type="done", run_id="r1", total_ms=400.0))
         stats = db.get_stats()
         assert stats.avg_tps > 0.0
         assert stats.avg_ttft_ms == 0.0
+
+    def test_list_runs_filter_by_model(self, db: DatabaseStore) -> None:
+        db.record_start(_start_event(run_id="r1", model="llama3"))
+        db.record_start(_start_event(run_id="r2", model="mistral"))
+        runs = db.list_runs(model="llama3")
+        assert len(runs) == 1
+        assert runs[0].model == "llama3"
+
+    def test_list_runs_filter_by_model_no_match(self, db: DatabaseStore) -> None:
+        db.record_start(_start_event(run_id="r1", model="llama3"))
+        runs = db.list_runs(model="nonexistent")
+        assert runs == []
+
+    def test_list_runs_filter_by_tag(self, db: DatabaseStore) -> None:
+        db.record_start(_start_event(run_id="r1"))
+        db.record_start(_start_event(run_id="r2"))
+        db.set_tags("r1", ["prod"])
+        runs = db.list_runs(tag="prod")
+        assert len(runs) == 1
+        assert runs[0].run_id == "r1"
+
+    def test_list_runs_filter_by_tag_no_match(self, db: DatabaseStore) -> None:
+        db.record_start(_start_event())
+        db.set_tags("r1", ["staging"])
+        runs = db.list_runs(tag="prod")
+        assert runs == []
+
+    def test_list_runs_filter_by_q(self, db: DatabaseStore) -> None:
+        db.record_start(_start_event(run_id="r1"))
+        db.record_start(
+            RunStartEvent(
+                type="start", run_id="r2", model="llama3", backend="ollama",
+                prompt_hash="xyz", prompt_text="something else entirely",
+            )
+        )
+        runs = db.list_runs(q="hello")
+        assert len(runs) == 1
+        assert runs[0].run_id == "r1"
+
+    def test_list_runs_filter_q_case_insensitive(self, db: DatabaseStore) -> None:
+        db.record_start(_start_event())
+        runs = db.list_runs(q="HELLO")
+        assert len(runs) == 1
+
+    def test_list_tags_empty_when_no_tags(self, db: DatabaseStore) -> None:
+        db.record_start(_start_event())
+        assert db.list_tags() == []
+
+    def test_list_tags_returns_unique_sorted(self, db: DatabaseStore) -> None:
+        db.record_start(_start_event(run_id="r1"))
+        db.record_start(_start_event(run_id="r2"))
+        db.set_tags("r1", ["prod", "fast"])
+        db.set_tags("r2", ["prod", "slow"])
+        tags = db.list_tags()
+        assert tags == sorted(set(tags))
+        assert "prod" in tags
+        assert "fast" in tags
+        assert "slow" in tags
+        assert tags.count("prod") == 1

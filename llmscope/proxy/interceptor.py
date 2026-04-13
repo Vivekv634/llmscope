@@ -6,7 +6,6 @@ import json
 import time
 import uuid
 from collections.abc import AsyncGenerator
-from typing import Optional
 
 import httpx
 from fastapi import Request
@@ -17,8 +16,8 @@ from llmscope.types.events import (
     DoneEvent,
     QueueEvent,
     RunStartEvent,
-    TTFTEvent,
     TokenEvent,
+    TTFTEvent,
 )
 
 
@@ -42,7 +41,7 @@ async def intercept_stream(
     target_url: str,
     queue: asyncio.Queue[QueueEvent],
     backend: AbstractBackend,
-    transport: Optional[httpx.AsyncBaseTransport] = None,
+    transport: httpx.AsyncBaseTransport | None = None,
 ) -> StreamingResponse:
     body: bytes = await request.body()
     body_data: object = json.loads(body) if body else {}

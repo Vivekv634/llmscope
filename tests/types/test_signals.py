@@ -8,7 +8,9 @@ from llmscope.types.signals import DriftResult, LatencyResult, QualityResult
 
 class TestLatencyResult:
     def test_valid_construction(self) -> None:
-        result = LatencyResult(ttft_ms=50.0, total_ms=1000.0, tps=120.0, stall_positions=[])
+        result = LatencyResult(
+            ttft_ms=50.0, total_ms=1000.0, tps=120.0, stall_positions=[]
+        )
         assert result.tps == 120.0
         assert result.stall_positions == []
 

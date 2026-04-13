@@ -3,8 +3,8 @@ from llmscope.types.events import (
     DoneEvent,
     QueueEvent,
     RunStartEvent,
-    TTFTEvent,
     TokenEvent,
+    TTFTEvent,
 )
 from llmscope.types.runs import OutputRecord, RunRecord, TokenRecord
 from llmscope.types.signals import DriftResult, LatencyResult, QualityResult

@@ -7,8 +7,8 @@ from llmscope.types.events import (
     DoneEvent,
     QueueEvent,
     RunStartEvent,
-    TTFTEvent,
     TokenEvent,
+    TTFTEvent,
 )
 
 
@@ -169,7 +169,10 @@ class TestQueueEventUnion:
     _adapter: TypeAdapter[QueueEvent] = TypeAdapter(QueueEvent)
 
     def test_parse_start_payload(self) -> None:
-        raw = '{"type":"start","run_id":"r1","model":"llama3","backend":"ollama","prompt_hash":"abc","prompt_text":"hi"}'
+        raw = (
+            '{"type":"start","run_id":"r1","model":"llama3",'
+            '"backend":"ollama","prompt_hash":"abc","prompt_text":"hi"}'
+        )
         event = self._adapter.validate_json(raw)
         assert isinstance(event, RunStartEvent)
         assert event.model == "llama3"
@@ -181,7 +184,10 @@ class TestQueueEventUnion:
         assert event.ttft_ms == 50.0
 
     def test_parse_token_payload(self) -> None:
-        raw = '{"type": "token", "run_id": "r1", "position": 2, "text": "hi", "arrived_at_ms": 10.0}'
+        raw = (
+            '{"type": "token", "run_id": "r1", "position": 2,'
+            ' "text": "hi", "arrived_at_ms": 10.0}'
+        )
         event = self._adapter.validate_json(raw)
         assert isinstance(event, TokenEvent)
         assert event.position == 2

@@ -40,12 +40,16 @@ class TestOllamaBackend:
         result = await ollama.parse_chunk(raw)
         assert result == "Hello"
 
-    async def test_parse_chunk_empty_response_field(self, ollama: OllamaBackend) -> None:
+    async def test_parse_chunk_empty_response_field(
+        self, ollama: OllamaBackend
+    ) -> None:
         raw = '{"model":"llama3","response":"","done":true}'
         result = await ollama.parse_chunk(raw)
         assert result == ""
 
-    async def test_parse_chunk_missing_response_field(self, ollama: OllamaBackend) -> None:
+    async def test_parse_chunk_missing_response_field(
+        self, ollama: OllamaBackend
+    ) -> None:
         raw = '{"model":"llama3","done":true}'
         result = await ollama.parse_chunk(raw)
         assert result == ""
@@ -85,7 +89,9 @@ class TestLlamaCppBackend:
         result = await llamacpp.parse_chunk("data: bad json")
         assert result == ""
 
-    async def test_parse_chunk_missing_content_field(self, llamacpp: LlamaCppBackend) -> None:
+    async def test_parse_chunk_missing_content_field(
+        self, llamacpp: LlamaCppBackend
+    ) -> None:
         raw = 'data: {"stop":true}'
         result = await llamacpp.parse_chunk(raw)
         assert result == ""

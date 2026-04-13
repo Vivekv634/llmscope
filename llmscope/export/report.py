@@ -13,11 +13,17 @@ _TEMPLATE: str = """<!DOCTYPE html>
   <meta charset="utf-8" />
   <title>LLMScope — {{ title }}</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 960px; margin: 48px auto; color: #1a1a1a; }
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 960px; margin: 48px auto; color: #1a1a1a;
+    }
     h1 { font-size: 1.5rem; margin-bottom: 4px; }
     p.meta { color: #666; font-size: 0.875rem; margin-bottom: 24px; }
     table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    th { text-align: left; padding: 8px 12px; border-bottom: 2px solid #e5e7eb; color: #555; font-weight: 600; }
+    th {
+      text-align: left; padding: 8px 12px;
+      border-bottom: 2px solid #e5e7eb; color: #555; font-weight: 600;
+    }
     td { padding: 8px 12px; border-bottom: 1px solid #e5e7eb; }
     tr:hover td { background: #f9fafb; }
   </style>
