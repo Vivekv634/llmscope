@@ -274,9 +274,7 @@ def inspect_replay(run_id: str, db: str, fast: bool, max_gap: float) -> None:
 
     for i, token in enumerate(tokens):
         if not fast and i > 0:
-            gap: float = (
-                token.arrived_at_ms - tokens[i - 1].arrived_at_ms
-            ) / 1000.0
+            gap: float = (token.arrived_at_ms - tokens[i - 1].arrived_at_ms) / 1000.0
             time.sleep(min(gap, max_gap))
         click.echo(token.text, nl=False)
 
@@ -292,9 +290,7 @@ def compare() -> None:
 @click.argument("prompt")
 @click.option("--model", "models", multiple=True, required=True)
 @click.option("--backend-url", default="http://localhost:11434", show_default=True)
-def compare_models_cmd(
-    prompt: str, models: tuple[str, ...], backend_url: str
-) -> None:
+def compare_models_cmd(prompt: str, models: tuple[str, ...], backend_url: str) -> None:
     results = asyncio.run(
         compare_models(
             prompt=prompt,
@@ -339,9 +335,7 @@ def compare_drift(run_a: str, run_b: str, db: str) -> None:
     click.echo(f"run A      : {result.run_a_id[:8]}  ({run_a_rec.model})")
     click.echo(f"run B      : {result.run_b_id[:8]}  ({run_b_rec.model})")
     click.echo(f"drift      : {result.cosine_drift:.4f}")
-    click.echo(
-        f"significant: {'yes ⚠' if result.is_significant else 'no'}"
-    )
+    click.echo(f"significant: {'yes ⚠' if result.is_significant else 'no'}")
 
 
 @main.group()

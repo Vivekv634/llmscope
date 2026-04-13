@@ -64,7 +64,9 @@ class TestConfigShow:
         assert "9090" in result.output
 
     def test_reflects_backend_url_option(self, runner: CliRunner) -> None:
-        result = runner.invoke(main, ["config", "show", "--backend-url", "http://custom:5000"])
+        result = runner.invoke(
+            main, ["config", "show", "--backend-url", "http://custom:5000"]
+        )
         assert result.exit_code == 0
         assert "http://custom:5000" in result.output
 
@@ -338,8 +340,9 @@ class TestExport:
 
 class TestStart:
     def test_invokes_uvicorn(self, runner: CliRunner) -> None:
-        with patch("llmscope.cli.uvicorn.run") as mock_run, \
-             patch("llmscope.cli.DatabaseStore"):
+        with patch("llmscope.cli.uvicorn.run") as mock_run, patch(
+            "llmscope.cli.DatabaseStore"
+        ):
             result = runner.invoke(main, ["start", "--port", "8888"])
         assert result.exit_code == 0
         mock_run.assert_called_once()
@@ -347,8 +350,7 @@ class TestStart:
         assert kwargs["port"] == 8888
 
     def test_custom_backend_url(self, runner: CliRunner) -> None:
-        with patch("llmscope.cli.uvicorn.run"), \
-             patch("llmscope.cli.DatabaseStore"):
+        with patch("llmscope.cli.uvicorn.run"), patch("llmscope.cli.DatabaseStore"):
             result = runner.invoke(
                 main, ["start", "--backend-url", "http://myhost:11434"]
             )
@@ -380,8 +382,14 @@ class TestCompareDrift:
         result = runner.invoke(
             main,
             [
-                "compare", "drift",
-                "--run-a", "no-such", "--run-b", run_b, "--db", db_path,
+                "compare",
+                "drift",
+                "--run-a",
+                "no-such",
+                "--run-b",
+                run_b,
+                "--db",
+                db_path,
             ],
         )
         assert result.exit_code == 0

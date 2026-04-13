@@ -136,16 +136,12 @@ class TestHtmlReportExporter:
     @pytest.mark.asyncio
     async def test_title_appears_in_output(self, tmp_path: Path) -> None:
         output = str(tmp_path / "report.html")
-        await HtmlReportExporter().export(
-            [_make_run()], output, title="My Report"
-        )
+        await HtmlReportExporter().export([_make_run()], output, title="My Report")
         content = Path(output).read_text()
         assert "My Report" in content
 
     @pytest.mark.asyncio
-    async def test_empty_runs_still_produces_valid_html(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_empty_runs_still_produces_valid_html(self, tmp_path: Path) -> None:
         output = str(tmp_path / "report.html")
         await HtmlReportExporter().export([], output)
         content = Path(output).read_text()

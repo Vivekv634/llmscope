@@ -85,8 +85,12 @@ class TestListRuns:
         _seed_run(db, "run-aaa11111")
         db.record_start(
             RunStartEvent(
-                type="start", run_id="run-bbb22222", model="mistral",
-                backend="ollama", prompt_hash="h2", prompt_text="hi",
+                type="start",
+                run_id="run-bbb22222",
+                model="mistral",
+                backend="ollama",
+                prompt_hash="h2",
+                prompt_text="hi",
             )
         )
         resp = client.get("/api/runs?model=llama3.2")
@@ -326,9 +330,7 @@ class TestListModels:
                 {"name": "mistral:7b"},
             ]
         }
-        with patch(
-            "llmscope.proxy.server.httpx.AsyncClient"
-        ) as mock_cls:
+        with patch("llmscope.proxy.server.httpx.AsyncClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -344,15 +346,12 @@ class TestListModels:
 
     def test_returns_502_when_backend_unreachable(self) -> None:
         import httpx as _httpx
+
         client, _ = _make_app()
-        with patch(
-            "llmscope.proxy.server.httpx.AsyncClient"
-        ) as mock_cls:
+        with patch("llmscope.proxy.server.httpx.AsyncClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
-            mock_client.get = AsyncMock(
-                side_effect=_httpx.ConnectError("refused")
-            )
+            mock_client.get = AsyncMock(side_effect=_httpx.ConnectError("refused"))
             resp = client.get("/api/models")
         assert resp.status_code == 502

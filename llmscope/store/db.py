@@ -29,9 +29,7 @@ class DatabaseStore:
     def _apply_schema(self) -> None:
         schema_path: pathlib.Path = pathlib.Path(__file__).parent / "schema.sql"
         sql_text: str = schema_path.read_text()
-        statements: list[str] = [
-            s.strip() for s in sql_text.split(";") if s.strip()
-        ]
+        statements: list[str] = [s.strip() for s in sql_text.split(";") if s.strip()]
         for statement in statements:
             self._conn.execute(statement)
         row = self._conn.execute(
@@ -95,9 +93,7 @@ class DatabaseStore:
             if event.total_ms > 0
             else 0.0
         )
-        token_texts: list[str] = [
-            str(row[0]) for row in rows if row[0] is not None
-        ]
+        token_texts: list[str] = [str(row[0]) for row in rows if row[0] is not None]
         full_text: str = "".join(token_texts)
         quality_score: float = output_entropy(token_texts).entropy_score
         self._conn.execute(

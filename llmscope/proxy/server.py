@@ -73,9 +73,7 @@ async def queue_worker(
         elif isinstance(event, DoneEvent):
             db.finalize_run(event)
             _broadcast(subscribers, event.run_id, event.model_dump_json())
-            _logger.info(
-                "run=%s done total=%.1fms", event.run_id, event.total_ms
-            )
+            _logger.info("run=%s done total=%.1fms", event.run_id, event.total_ms)
         queue.task_done()
 
 
@@ -84,9 +82,7 @@ def create_app(
     db: DatabaseStore,
     backend: AbstractBackend,
 ) -> FastAPI:
-    queue: asyncio.Queue[QueueEvent] = asyncio.Queue(
-        maxsize=config.queue_maxsize
-    )
+    queue: asyncio.Queue[QueueEvent] = asyncio.Queue(maxsize=config.queue_maxsize)
     subscribers: _Subscribers = {}
 
     @asynccontextmanager
@@ -122,15 +118,11 @@ def create_app(
 
     @app.post("/api/generate")
     async def proxy_generate(request: Request) -> StreamingResponse:
-        return await intercept_stream(
-            request, backend.generate_url(), queue, backend
-        )
+        return await intercept_stream(request, backend.generate_url(), queue, backend)
 
     @app.post("/api/chat")
     async def proxy_chat(request: Request) -> StreamingResponse:
-        return await intercept_stream(
-            request, backend.chat_url(), queue, backend
-        )
+        return await intercept_stream(request, backend.chat_url(), queue, backend)
 
     @app.get("/api/models", response_model=list[str])
     async def list_models() -> list[str]:
@@ -219,8 +211,10 @@ def create_app(
         tokens_a: list[TokenRecord] = db.get_tokens(run_id)
         tokens_b: list[TokenRecord] = db.get_tokens(compare_to)
         return cosine_drift(
-            run_id, [t.text for t in tokens_a],
-            compare_to, [t.text for t in tokens_b],
+            run_id,
+            [t.text for t in tokens_a],
+            compare_to,
+            [t.text for t in tokens_b],
         )
 
     @app.get("/api/stats", response_model=StatsRecord)

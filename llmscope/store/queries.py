@@ -40,9 +40,7 @@ def _to_run_record(row: tuple[Any, ...]) -> RunRecord:
     )
 
 
-def get_run_by_id(
-    conn: duckdb.DuckDBPyConnection, run_id: str
-) -> RunRecord | None:
+def get_run_by_id(conn: duckdb.DuckDBPyConnection, run_id: str) -> RunRecord | None:
     row: tuple[Any, ...] | None = conn.execute(
         f"SELECT {_RUN_COLUMNS} FROM runs WHERE run_id = ?", [run_id]
     ).fetchone()
@@ -153,9 +151,7 @@ def get_stats(conn: duckdb.DuckDBPyConnection) -> StatsRecord:
     model_rows: list[tuple[Any, ...]] = conn.execute(
         "SELECT model, COUNT(*) FROM runs GROUP BY model ORDER BY COUNT(*) DESC"
     ).fetchall()
-    model_breakdown: dict[str, int] = {
-        str(row[0]): int(row[1]) for row in model_rows
-    }
+    model_breakdown: dict[str, int] = {str(row[0]): int(row[1]) for row in model_rows}
 
     return StatsRecord(
         total_runs=total_runs,

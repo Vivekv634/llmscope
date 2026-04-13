@@ -34,9 +34,7 @@ class _MockAsyncTransport(httpx.AsyncBaseTransport):
     def __init__(self, chunks: list[bytes]) -> None:
         self._chunks: list[bytes] = chunks
 
-    async def handle_async_request(
-        self, request: httpx.Request
-    ) -> httpx.Response:
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, stream=_MockAsyncStream(self._chunks))
 
 

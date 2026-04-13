@@ -166,8 +166,10 @@ class TestCosineDrift:
 
     def test_completely_different_runs_max_drift(self) -> None:
         result = cosine_drift(
-            "run-a", ["alpha", "beta", "gamma"],
-            "run-b", ["delta", "epsilon", "zeta"],
+            "run-a",
+            ["alpha", "beta", "gamma"],
+            "run-b",
+            ["delta", "epsilon", "zeta"],
         )
         assert result.cosine_drift == pytest.approx(1.0, rel=1e-5)
         assert result.is_significant is True
@@ -184,8 +186,10 @@ class TestCosineDrift:
 
     def test_partial_overlap_drift_between_zero_and_one(self) -> None:
         result = cosine_drift(
-            "run-a", ["the", "cat", "sat"],
-            "run-b", ["the", "dog", "ran"],
+            "run-a",
+            ["the", "cat", "sat"],
+            "run-b",
+            ["the", "dog", "ran"],
         )
         assert 0.0 < result.cosine_drift < 1.0
 
@@ -203,26 +207,34 @@ class TestCosineDrift:
 
     def test_drift_within_valid_range(self) -> None:
         result = cosine_drift(
-            "a", ["foo", "bar", "baz", "foo"],
-            "b", ["bar", "baz", "qux", "baz"],
+            "a",
+            ["foo", "bar", "baz", "foo"],
+            "b",
+            ["bar", "baz", "qux", "baz"],
         )
         assert 0.0 <= result.cosine_drift <= 1.0
 
     def test_significance_threshold_above_015(self) -> None:
         result = cosine_drift(
-            "a", ["alpha", "beta"],
-            "b", ["gamma", "delta"],
+            "a",
+            ["alpha", "beta"],
+            "b",
+            ["gamma", "delta"],
         )
         assert result.is_significant is True
         assert result.cosine_drift > 0.15
 
     def test_frequency_weighting_affects_drift(self) -> None:
         result_repeat = cosine_drift(
-            "a", ["the"] * 10 + ["cat"],
-            "b", ["the"] * 10 + ["dog"],
+            "a",
+            ["the"] * 10 + ["cat"],
+            "b",
+            ["the"] * 10 + ["dog"],
         )
         result_equal = cosine_drift(
-            "a", ["the", "cat"],
-            "b", ["the", "dog"],
+            "a",
+            ["the", "cat"],
+            "b",
+            ["the", "dog"],
         )
         assert result_repeat.cosine_drift < result_equal.cosine_drift

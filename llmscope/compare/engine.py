@@ -69,9 +69,7 @@ async def _run_single(
 
     total_ms: float = (time.monotonic() - t0) * 1000
     quality: QualityResult = output_entropy(tokens)
-    tps: float = (
-        round(len(tokens) / (total_ms / 1000.0), 4) if total_ms > 0 else 0.0
-    )
+    tps: float = round(len(tokens) / (total_ms / 1000.0), 4) if total_ms > 0 else 0.0
     return CompareResult(
         model=model,
         ttft_ms=round(ttft_ms, 2),
@@ -89,9 +87,7 @@ async def compare_models(
     backend_url: str,
     transport: httpx.AsyncBaseTransport | None = None,
 ) -> list[CompareResult]:
-    tasks = [
-        _run_single(prompt, model, backend_url, transport) for model in models
-    ]
+    tasks = [_run_single(prompt, model, backend_url, transport) for model in models]
     raw = await asyncio.gather(*tasks, return_exceptions=True)
     results: list[CompareResult] = []
     for model, outcome in zip(models, raw):

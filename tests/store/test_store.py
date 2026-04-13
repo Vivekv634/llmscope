@@ -209,8 +209,11 @@ class TestDatabaseStore:
         for i in range(3):
             db.record_token(
                 TokenEvent(
-                    type="token", run_id="r1", position=i,
-                    text="a", arrived_at_ms=float(i),
+                    type="token",
+                    run_id="r1",
+                    position=i,
+                    text="a",
+                    arrived_at_ms=float(i),
                 )
             )
         db.record_token(
@@ -277,8 +280,12 @@ class TestDatabaseStore:
         db.record_start(_start_event(run_id="r1"))
         db.record_start(
             RunStartEvent(
-                type="start", run_id="r2", model="llama3", backend="ollama",
-                prompt_hash="xyz", prompt_text="something else entirely",
+                type="start",
+                run_id="r2",
+                model="llama3",
+                backend="ollama",
+                prompt_hash="xyz",
+                prompt_text="something else entirely",
             )
         )
         runs = db.list_runs(q="hello")
